@@ -1,10 +1,10 @@
-name: Build APK (TronWallet Mobile)
+name: Build APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -12,53 +12,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout source
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
 
-      # 2. Install Node 12 (под старый Realm)
-      - name: Use Node 12
+      # Устанавливаем Node 10 (только он работает с Realm 2.x)
+      - name: Setup Node.js 10
         uses: actions/setup-node@v4
         with:
-          node-version: 12
+          node-version: 10
 
-      # 3. Install yarn
       - name: Install Yarn
         run: npm install -g yarn
 
-      # 4. Install dependencies
-      - name: Install NPM dependencies
+      - name: Install dependencies
         run: yarn install --network-timeout 1000000
 
-      # 5. Install JDK for Android
-      - name: Set up JDK 11
+      # Устанавливаем JDK и Android SDK
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '11'
+          distribution: "temurin"
+          java-version: 11
 
-      # 6. Install Android SDK components
-      - name: Install Android SDK
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip
-          sdkmanager "platform-tools" \
-                     "build-tools;33.0.2" \
-                     "platforms;android-33"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # 7. Build APK
-      - name: Build Release APK
+      # Сборка APK
+      - name: Build APK
         run: |
           cd android
-          chmod +x ./gradlew
-          ./gradlew assembleRelease --stacktrace
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
 
-      # 8. Upload APK artifact
+      # Артефакт APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
+          name: tronwallet-apk
           path: android/app/build/outputs/apk/release/app-release.apk
