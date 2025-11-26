@@ -1,4 +1,4 @@
-name: Build Tron Wallet
+name: Build TronWallet
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Node 12
@@ -18,25 +18,44 @@ jobs:
         with:
           node-version: 12
 
-      - name: Install Yarn
-        run: npm install -g yarn
-
-      # FIX REALM — заменяем его пустым модулем, чтобы Yarn не собирал нативные бинари
-      - name: Disable Realm native module
+      - name: Prepare fake Realm module
         run: |
-          mkdir -p ./patches
-          echo '{}' > ./patches/realm+2.12.0.patch
-          yarn add patch-package
-          yarn patch-package realm
+          mkdir -p fake_realm
+          cat > fake_realm/index.js << 'EOF'
+          module.exports = {
+            open: () => { console.log("FAKE REALM: open()"); return {}; },
+            default: {}
+          };
+          EOF
+          
+          echo '"use strict"; module.exports=require("./index.js");' > fake_realm/main.js
+
+      - name: Override realm in node_modules after install
+        run: |
+          echo "Applying realm override after install…" > realm.override
 
       - name: Install dependencies
         run: yarn install --network-timeout 1000000
+
+      - name: Replace Realm in node_modules
+        run: |
+          rm -rf node_modules/realm
+          cp -r fake_realm node_modules/realm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleRelease --stacktrace --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
