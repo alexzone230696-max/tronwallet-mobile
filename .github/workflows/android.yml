@@ -18,6 +18,7 @@ jobs:
         with:
           node-version: 12
 
+      # Fake Realm module
       - name: Prepare fake Realm module
         run: |
           mkdir -p fake_realm
@@ -27,17 +28,18 @@ jobs:
             default: {}
           };
           EOF
-          
           echo '"use strict"; module.exports=require("./index.js");' > fake_realm/main.js
 
-      - name: Override realm in node_modules after install
+      # IMPORTANT: Fix Yarn registry to avoid 500 errors
+      - name: Fix Yarn registry
         run: |
-          echo "Applying realm override after install…" > realm.override
+          yarn config set registry https://registry.npmjs.org
+          yarn config set strict-ssl false
 
       - name: Install dependencies
         run: yarn install --network-timeout 1000000
 
-      - name: Replace Realm in node_modules
+      - name: Replace Realm with fake version
         run: |
           rm -rf node_modules/realm
           cp -r fake_realm node_modules/realm
