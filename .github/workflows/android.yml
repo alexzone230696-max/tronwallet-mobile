@@ -1,52 +1,45 @@
-name: Build APK
+name: Build Tron Wallet
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Устанавливаем Node 10 (только он работает с Realm 2.x)
-      - name: Setup Node.js 10
+      - name: Setup Node 12
         uses: actions/setup-node@v4
         with:
-          node-version: 10
+          node-version: 12
 
       - name: Install Yarn
         run: npm install -g yarn
 
+      # FIX REALM — заменяем его пустым модулем, чтобы Yarn не собирал нативные бинари
+      - name: Disable Realm native module
+        run: |
+          mkdir -p ./patches
+          echo '{}' > ./patches/realm+2.12.0.patch
+          yarn add patch-package
+          yarn patch-package realm
+
       - name: Install dependencies
         run: yarn install --network-timeout 1000000
 
-      # Устанавливаем JDK и Android SDK
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: 11
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      # Сборка APK
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --stacktrace
 
-      # Артефакт APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: tronwallet-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/*.apk
